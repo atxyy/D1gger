@@ -1,0 +1,43 @@
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Tests / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+htmlcov/
+
+# Recon artifacts (server --output-dir / CLI default dirs)
+out/
+output/
+
+# Env & secrets (if you add later)
+*.pem
+*.key
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
