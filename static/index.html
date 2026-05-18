@@ -1,1180 +1,1657 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>D1gger Visualiser</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --bg: #0c0e12;
-      --bg-elev: #12151c;
-      --bg-card: #161a24;
-      --border: #262b38;
-      --text: #e8eaf0;
-      --muted: #8b93a7;
-      --accent: #6ee7b7;
-      --accent-dim: #34d399;
-      --warn: #fbbf24;
-      --danger: #f87171;
-      --radius: 12px;
-      --font: "DM Sans", system-ui, sans-serif;
-      --mono: "JetBrains Mono", ui-monospace, monospace;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: var(--font);
-      background: radial-gradient(1200px 800px at 10% -10%, #1a2332 0%, transparent 55%),
-                  radial-gradient(900px 600px at 100% 0%, #14221c 0%, transparent 50%),
-                  var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-    }
-    a { color: var(--accent-dim); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .wrap { max-width: 1280px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
-    header.top {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: flex-end;
-      justify-content: space-between;
-      margin-bottom: 2rem;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1.25rem;
-    }
-    .brand h1 {
-      margin: 0;
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .brand p { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.95rem; max-width: 42rem; }
-    .brand strong { color: var(--text); }
-    .brand code {
-      font-family: var(--mono);
-      font-size: 0.84em;
-      padding: 0.08rem 0.25rem;
-      border-radius: 4px;
-      background: rgba(0,0,0,0.35);
-      border: 1px solid var(--border);
-      color: var(--accent-dim);
-    }
-    .nav-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.4rem 0.75rem;
-      border-radius: 999px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-    .pill code { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
-    .run-bar {
-      display: grid;
-      gap: 1rem;
-      grid-template-columns: 1fr auto;
-      align-items: end;
-      margin-bottom: 1.5rem;
-    }
-    @media (max-width: 720px) { .run-bar { grid-template-columns: 1fr; } }
-    label.field { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.82rem; color: var(--muted); font-weight: 500; }
-    select, button {
-      font-family: inherit;
-      font-size: 0.95rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg-card);
-      color: var(--text);
-      padding: 0.65rem 0.85rem;
-    }
-    select { min-height: 2.75rem; }
-    button {
-      cursor: pointer;
-      font-weight: 600;
-      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-      transition: transform 0.08s ease, border-color 0.15s ease;
-    }
-    button:hover { border-color: var(--muted); }
-    button:active { transform: scale(0.98); }
-    button.primary {
-      background: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
-      border-color: #047857;
-      color: #ecfdf5;
-    }
-    button.ghost {
-      background: transparent;
-      font-weight: 500;
-    }
-    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-    .grid {
-      display: grid;
-      gap: 1rem;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    }
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1rem 1rem 1.1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-    }
-    .card h3 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-    }
-    .badge {
-      font-size: 0.68rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 0.2rem 0.45rem;
-      border-radius: 6px;
-      background: #1e293b;
-      color: var(--muted);
-    }
-    .badge.ok { background: #064e3b; color: #a7f3d0; }
-    .badge.miss { background: #451a1a; color: #fecaca; }
-    .desc { margin: 0; font-size: 0.85rem; color: var(--muted); flex: 1; }
-    .card-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .panel {
-      margin-top: 2rem;
-      background: var(--bg-elev);
-      border: 1px solid var(--border);
-      border-radius: calc(var(--radius) + 2px);
-      overflow: hidden;
-    }
-    .panel-h {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.85rem 1rem;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0,0,0,.2);
-    }
-    .panel-h h2 {
-      margin: 0;
-      font-size: 1.05rem;
-      font-weight: 600;
-    }
-    .panel-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    pre.view {
-      margin: 0;
-      padding: 1rem;
-      max-height: 480px;
-      overflow: auto;
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      line-height: 1.55;
-      color: #cbd5e1;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .empty {
-      padding: 2rem 1rem;
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-    .toast {
-      position: fixed;
-      bottom: 1.25rem;
-      right: 1.25rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.65rem 1rem;
-      border-radius: var(--radius);
-      font-size: 0.85rem;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-      z-index: 50;
-    }
-    .toast.show { opacity: 1; }
-    .hint { margin-top: 0.75rem; font-size: 0.8rem; color: var(--muted); }
-    .hint code { font-family: var(--mono); color: var(--accent); font-size: 0.78rem; }
-    input[type="text"] {
-      font-family: inherit;
-      font-size: 0.95rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      padding: 0.65rem 0.85rem;
-      outline: none;
-      min-height: 2.75rem;
-      width: 100%;
-      max-width: 22rem;
-    }
-    input[type="text"]:focus { border-color: var(--accent-dim); }
-    .scan-form-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: flex-end;
-    }
-    .checks { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding-bottom: 0.15rem; }
-    label.chk {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.84rem;
-      color: var(--muted);
-      cursor: pointer;
-      user-select: none;
-    }
-    label.chk input { accent-color: var(--accent-dim); width: 1rem; height: 1rem; }
-    pre.scan-log {
-      margin-top: 0.85rem;
-      max-height: 280px;
-      min-height: 4rem;
-      background: rgba(0,0,0,.25);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
-    .scan-status-line { margin-top: 0.65rem; font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
-    .chip-path { font-family: var(--mono); font-size: 0.75rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-    .table-scroll {
-      overflow-x: auto;
-      max-height: min(62vh, 720px);
-      overflow-y: auto;
-    }
-    table.triage-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.832rem;
-      min-width: 720px;
-    }
-    table.triage-table thead th {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      text-align: left;
-      padding: 0.65rem 0.85rem;
-      background: rgba(22,26,36,0.95);
-      backdrop-filter: blur(6px);
-      border-bottom: 1px solid var(--border);
-      font-weight: 600;
-      color: var(--muted);
-      cursor: pointer;
-      white-space: nowrap;
-      user-select: none;
-    }
-    table.triage-table thead th:hover { color: var(--accent); }
-    table.triage-table thead th.sorted::after {
-      content: attr(data-sortdir);
-      margin-left: 0.35rem;
-      font-size: 0.7rem;
-      opacity: 0.85;
-      color: var(--accent-dim);
-    }
-    table.triage-table td {
-      padding: 0.55rem 0.85rem;
-      border-bottom: 1px solid rgba(38,43,56,0.6);
-      vertical-align: top;
-      color: #cbd5e1;
-    }
-    table.triage-table tbody tr:nth-child(even) td { background: rgba(255,255,255,.015); }
-    table.triage-table tbody tr:hover td { background: rgba(52,211,153,.06); }
-    td.cell-host {
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--text);
-      max-width: 14rem;
-      word-break: break-all;
-    }
-    td.cell-notes {
-      font-size: 0.78rem;
-      color: var(--muted);
-      max-width: 24rem;
-    }
-    td.cell-score { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--warn); font-family: var(--mono); }
-    .hp {
-      display: inline-block;
-      padding: 0.12rem 0.45rem;
-      border-radius: 6px;
-      font-family: var(--mono);
-      font-size: 0.74rem;
-      font-weight: 600;
-      line-height: 1.35;
-    }
-    .hp.ok { background: #064e3b; color: #a7f3d0; }
-    .hp.gate { background: #78350f; color: #fde68a; }
-    .hp.redir { background: #1e3a5f; color: #93c5fd; }
-    .hp.dead { background: #451a1a; color: #fca5a5; }
-    .hp.muted { background: #1e293b; color: var(--muted); }
-    .phase-rail-wrap { margin-top: 0.85rem; }
-    .phase-rail { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: stretch; }
-    .phase-node {
-      flex: 1;
-      min-width: 4.75rem;
-      text-align: center;
-      font-size: 0.65rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 0.45rem 0.35rem;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    }
-    .phase-node.pending { opacity: 0.45; }
-    .phase-node.active {
-      opacity: 1;
-      border-color: var(--accent-dim);
-      color: var(--accent);
-      background: rgba(52, 211, 153, 0.09);
-      box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.12);
-    }
-    .phase-node.done { opacity: 1; border-color: #374151; color: #9ca3af; background: rgba(255,255,255,0.02); }
-    .overview-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-      gap: 0.75rem;
-      padding: 1rem;
-    }
-    .ov-tile {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0.85rem 0.95rem;
-    }
-    .ov-tile .num { font-size: 1.4rem; font-weight: 700; font-family: var(--mono); color: var(--accent); line-height: 1.15; }
-    .ov-tile .lbl {
-      font-size: 0.7rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-top: 0.35rem;
-    }
-    .ov-block { padding: 0 1rem 1rem; font-size: 0.88rem; color: var(--muted); }
-    .ov-block h4 {
-      margin: 0 0 0.5rem;
-      font-size: 0.76rem;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--muted);
-      font-weight: 600;
-    }
-    .ov-chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-    .ov-chip {
-      font-size: 0.78rem;
-      padding: 0.25rem 0.55rem;
-      border-radius: 999px;
-      background: rgba(30,41,59,0.85);
-      border: 1px solid var(--border);
-      color: #e2e8f0;
-    }
-    .ov-top-targets { margin: 0; padding-left: 1rem; font-size: 0.82rem; color: #cbd5e1; }
-    .agent-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    .agent-table th, .agent-table td {
-      text-align: left;
-      padding: 0.55rem 1rem;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-    .agent-table th {
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--muted);
-      width: 26%;
-    }
-    .agent-table code { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
-    .muted-block { padding: 0 1rem 1rem; color: var(--muted); font-size: 0.88rem; line-height: 1.55; }
-    .section-grid-inner { padding: 1rem; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <header class="top">
-      <div class="brand">
-        <h1>D1gger Visualiser</h1>
-        <p>
-          <strong>Human view:</strong> run recon, watch the pipeline advance, skim triage as a grid, peek raw slices.
-          <strong>Agent hooks:</strong> the same artifacts are served over HTTP — point <a href="https://hackfast.co" target="_blank" rel="noopener">hackfast.co</a>
-          (or any tool) at <code>/api/agent</code> for a stable contract plus <code>/docs</code> for OpenAPI.</p>
-      </div>
-      <div class="nav-links">
-        <span class="pill"><a href="/api/agent" target="_blank">Agent manifest</a></span>
-        <span class="pill">API <a href="/docs" target="_blank" rel="noreferrer">OpenAPI</a></span>
-        <span class="pill">Health <code id="healthOut">…</code></span>
-      </div>
-    </header>
-
-    <section class="panel" style="margin-top:0;">
-      <div class="panel-h">
-        <h2>Active recon</h2>
-        <div class="nav-links"><span class="pill">Writes to <span class="chip-path" id="outDirHint" title="">…</span></span></div>
-      </div>
-      <div style="padding:1rem 1rem 1.1rem;">
-        <form id="scanForm" class="scan-form-row">
-          <label class="field" style="flex:1;min-width:200px;max-width:22rem;margin:0;">Target domain
-            <input type="text" id="scanDomain" name="domain" placeholder="example.com" autocomplete="off" spellcheck="false"/>
-          </label>
-          <div class="checks">
-            <label class="chk"><input type="checkbox" id="chkScanNoHttp"/> Skip HTTP probing</label>
-            <label class="chk"><input type="checkbox" id="chkScanNoSf"/> Skip subfinder fallback</label>
-          </div>
-          <button type="submit" class="primary" id="btnScan">Start scan</button>
-        </form>
-        <div class="scan-status-line"><span id="scanStatusBadge">Idle</span><span id="scanDomainHint"></span></div>
-        <div class="phase-rail-wrap">
-          <div class="phase-rail" id="phaseRail">
-            <div class="phase-node pending" data-i="0" title="CRT / subfinder">Enum</div>
-            <div class="phase-node pending" data-i="1" title="Bulk DNS resolve">DNS</div>
-            <div class="phase-node pending" data-i="2" title="TXT / MX / NS / root">Root DNS</div>
-            <div class="phase-node pending" data-i="3" title="Heuristic third-party cues">Signals</div>
-            <div class="phase-node pending" data-i="4" title="curl HTTP/HTTPS">HTTP</div>
-            <div class="phase-node pending" data-i="5" title="Scored triage CSV">Rank</div>
-            <div class="phase-node pending" data-i="6" title="_summary.json and friends">Saved</div>
-          </div>
-        </div>
-        <pre class="view scan-log" id="scanLog">Scan output streams here once you start — the lanes above infer progress from stdout.</pre>
-      </div>
-    </section>
-
-    <section class="run-bar">
-      <label class="field">
-        Saved run
-        <select id="runSelect" disabled>
-          <option value="">Loading runs…</option>
-        </select>
-      </label>
-      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <button type="button" class="primary" id="btnRefresh">Refresh runs</button>
-      </div>
-    </section>
-
-    <section class="panel" style="margin-top:1.25rem;">
-      <div class="panel-h">
-        <h2>Run snapshot</h2>
-      </div>
-      <div id="runOverviewBody">
-        <p class="empty" style="margin:0;padding:2rem 1rem;">Choose a recon run above — pulls <code>_summary.json</code> counts, third‑party guesses, top targets.</p>
-      </div>
-    </section>
-
-    <section class="panel" style="margin-top:1.25rem;">
-      <div class="panel-h">
-        <h2>Triage matrix</h2>
-        <div class="panel-actions">
-          <button type="button" class="ghost" id="btnTriageReload">Reload table</button>
-        </div>
-      </div>
-      <div class="table-scroll" id="triageTableWrap">
-        <p class="empty triage-placeholder" style="margin:0;padding:2rem 1rem;">Select a recon run below — triage renders as an interactive table (sort by column).</p>
-      </div>
-    </section>
-
-    <section class="panel" style="margin-top:1.25rem;">
-      <div class="panel-h"><h2>Artifact slices</h2></div>
-      <div class="section-grid-inner">
-        <div id="sectionGrid" class="grid" aria-live="polite"></div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-h">
-        <h2 id="viewerTitle">Raw slice viewer</h2>
-        <div class="panel-actions">
-          <button type="button" class="ghost" id="btnCopyView" disabled>Copy</button>
-          <button type="button" class="ghost" id="btnDownloadView" disabled>Download</button>
-        </div>
-      </div>
-      <pre class="view" id="viewer">Pick an artifact slice above.</pre>
-      <p class="hint" id="viewerHint"></p>
-    </section>
-
-    <section class="panel" style="margin-top:1.25rem;">
-      <div class="panel-h">
-        <h2>LLM / agent bundle (preview)</h2>
-        <div class="panel-actions">
-          <button type="button" class="primary" id="btnLoadBundle" disabled>Load preview</button>
-          <button type="button" class="ghost" id="btnCopyBundle" disabled>Copy all</button>
-          <button type="button" class="ghost" id="btnOpenBundle" disabled>Open raw</button>
-        </div>
-      </div>
-      <p class="muted-block" style="padding-top:0.75rem">
-        Canonical multi-section document agents should fetch: <code id="bundleUrlHint"></code></p>
-      <pre class="view" id="bundle" style="max-height:480px;">Load the stitched plaintext (same payload hackfast tooling would pull from <code>GET …/llm.txt</code>).</pre>
-      <p class="hint" id="bundleHint"></p>
-    </section>
-
-    <section class="panel" style="margin-top:1.25rem;">
-      <div class="panel-h">
-        <h2>hackfast.co · agent endpoints</h2>
-        <div class="panel-actions">
-          <a class="pill" href="/api/agent" target="_blank" style="color:inherit;text-decoration:none">GET /api/agent</a>
-        </div>
-      </div>
-      <p class="muted-block">
-        Wire your agent against this server’s origin. Read the manifest first — it describes <code>recommended_flow</code> and enumerates artifact sections (<code>subdomains_all</code>, …, <code>summary</code>).
-        Humans use the dashboard; agents consume JSON / plaintext below.</p>
-      <table class="agent-table">
-        <thead>
-          <tr><th>Intent</th><th>HTTP</th></tr>
-        </thead>
-        <tbody id="agentTableBody">
-          <tr><td>Discovery &amp; handshake</td><td><code>GET /api/agent</code> · <code>GET /api/health</code></td></tr>
-          <tr><td>List finished runs</td><td><code>GET /api/runs</code></td></tr>
-          <tr><td>Summary JSON</td><td><code>GET /api/runs/{run_id}/summary</code></td></tr>
-          <tr><td>Which files landed on disk</td><td><code>GET /api/runs/{run_id}/sections</code></td></tr>
-          <tr><td>Triage rows (nice for codegen)</td><td><code>GET /api/runs/{run_id}/section/triage/table</code></td></tr>
-          <tr><td>Single artifact as text</td><td><code>GET /api/runs/{run_id}/section/{section}/text</code></td></tr>
-          <tr><td>Combined LLM context</td><td><code>GET /api/runs/{run_id}/llm.txt</code></td></tr>
-          <tr><td>Kick off recon (streaming)</td><td><code>POST /api/scan</code> (SSE events)</td></tr>
-        </tbody>
-      </table>
-      <pre class="view" id="curlSnippets" style="margin-top:0;border-top:none;max-height:none;font-size:0.78rem;">—</pre>
-    </section>
-  </div>
-  <div class="toast" id="toast" role="status"></div>
-
-  <script>
-    const META = {
-      subdomains_all: 'Certificate transparency names (crt.sh harvest).',
-      subdomains_live: 'Hosts that resolved to IPv4 in this run.',
-      subdomains_dead: 'Names that did not resolve via DNS.',
-      triage: 'CSV with IPs, HTTP(S) statuses, heuristic score.',
-      summary: 'JSON rollup: counts, third-party hints, top targets.'
-    };
-
-    const el = id => document.getElementById(id);
-    let currentRunId = '';
-    let currentSection = '';
-    let currentViewerText = '';
-    let lastBundleUrl = '';
-
-    let triageSort = { column: null, dir: 1 };
-    let scanRunning = false;
-    let triageData = { cols: [], rows: [] };
-    let pipelineIdx = -1;
-
-    function encRun(id) { return encodeURIComponent(id); }
-
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c =>
-        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    function api(path) {
-      return fetch(path, { headers: { 'Accept': 'application/json,text/plain,*/*' } });
-    }
-
-    async function pingHealth() {
-      try {
-        const r = await api('/api/health');
-        const j = await r.json();
-        el('healthOut').textContent = j.ok ? 'ok' : 'err';
-        const od = el('outDirHint');
-        if (od && j.output_dir) {
-          od.textContent = j.output_dir;
-          od.title = j.output_dir;
-        }
-      } catch {
-        el('healthOut').textContent = 'err';
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>D1gger Visualiser</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0c0e12;
+        --bg-elev: #12151c;
+        --bg-card: #161a24;
+        --border: #262b38;
+        --text: #e8eaf0;
+        --muted: #8b93a7;
+        --accent: #6ee7b7;
+        --accent-dim: #34d399;
+        --warn: #fbbf24;
+        --danger: #f87171;
+        --radius: 12px;
+        --font: "DM Sans", system-ui, sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, monospace;
       }
-    }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--font);
+        background:
+          radial-gradient(
+            1200px 800px at 10% -10%,
+            #1a2332 0%,
+            transparent 55%
+          ),
+          radial-gradient(900px 600px at 100% 0%, #14221c 0%, transparent 50%),
+          var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      a {
+        color: var(--accent-dim);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+      }
+      header.top {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 1.25rem;
+      }
+      .brand h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .brand p {
+        margin: 0.35rem 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+        max-width: 42rem;
+      }
+      .brand strong {
+        color: var(--text);
+      }
+      .brand code {
+        font-family: var(--mono);
+        font-size: 0.84em;
+        padding: 0.08rem 0.25rem;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid var(--border);
+        color: var(--accent-dim);
+      }
+      .nav-links {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .pill code {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--accent);
+      }
+      .run-bar {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        margin-bottom: 1.5rem;
+      }
+      @media (max-width: 720px) {
+        .run-bar {
+          grid-template-columns: 1fr;
+        }
+      }
+      label.field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      select,
+      button {
+        font-family: inherit;
+        font-size: 0.95rem;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        color: var(--text);
+        padding: 0.65rem 0.85rem;
+      }
+      select {
+        min-height: 2.75rem;
+      }
+      button {
+        cursor: pointer;
+        font-weight: 600;
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        transition:
+          transform 0.08s ease,
+          border-color 0.15s ease;
+      }
+      button:hover {
+        border-color: var(--muted);
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      button.primary {
+        background: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
+        border-color: #047857;
+        color: #ecfdf5;
+      }
+      button.ghost {
+        background: transparent;
+        font-weight: 500;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      }
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1rem 1.1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      .card h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .badge {
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 0.2rem 0.45rem;
+        border-radius: 6px;
+        background: #1e293b;
+        color: var(--muted);
+      }
+      .badge.ok {
+        background: #064e3b;
+        color: #a7f3d0;
+      }
+      .badge.miss {
+        background: #451a1a;
+        color: #fecaca;
+      }
+      .desc {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+        flex: 1;
+      }
+      .card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .panel {
+        margin-top: 2rem;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) + 2px);
+        overflow: hidden;
+      }
+      .panel-h {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.2);
+      }
+      .panel-h h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
+      .panel-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      pre.view {
+        margin: 0;
+        padding: 1rem;
+        max-height: 480px;
+        overflow: auto;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        line-height: 1.55;
+        color: #cbd5e1;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .empty {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .toast {
+        position: fixed;
+        bottom: 1.25rem;
+        right: 1.25rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 0.65rem 1rem;
+        border-radius: var(--radius);
+        font-size: 0.85rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        z-index: 50;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      .hint {
+        margin-top: 0.75rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .hint code {
+        font-family: var(--mono);
+        color: var(--accent);
+        font-size: 0.78rem;
+      }
+      input[type="text"] {
+        font-family: inherit;
+        font-size: 0.95rem;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        padding: 0.65rem 0.85rem;
+        outline: none;
+        min-height: 2.75rem;
+        width: 100%;
+        max-width: 22rem;
+      }
+      input[type="text"]:focus {
+        border-color: var(--accent-dim);
+      }
+      .scan-form-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: flex-end;
+      }
+      .checks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        padding-bottom: 0.15rem;
+      }
+      label.chk {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.84rem;
+        color: var(--muted);
+        cursor: pointer;
+        user-select: none;
+      }
+      label.chk input {
+        accent-color: var(--accent-dim);
+        width: 1rem;
+        height: 1rem;
+      }
+      pre.scan-log {
+        margin-top: 0.85rem;
+        max-height: 280px;
+        min-height: 4rem;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .scan-status-line {
+        margin-top: 0.65rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
+      }
+      .chip-path {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .table-scroll {
+        overflow-x: auto;
+        max-height: min(62vh, 720px);
+        overflow-y: auto;
+      }
+      table.triage-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.832rem;
+        min-width: 720px;
+      }
+      table.triage-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        text-align: left;
+        padding: 0.65rem 0.85rem;
+        background: rgba(22, 26, 36, 0.95);
+        backdrop-filter: blur(6px);
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+        white-space: nowrap;
+        user-select: none;
+      }
+      table.triage-table thead th:hover {
+        color: var(--accent);
+      }
+      table.triage-table thead th.sorted::after {
+        content: attr(data-sortdir);
+        margin-left: 0.35rem;
+        font-size: 0.7rem;
+        opacity: 0.85;
+        color: var(--accent-dim);
+      }
+      table.triage-table td {
+        padding: 0.55rem 0.85rem;
+        border-bottom: 1px solid rgba(38, 43, 56, 0.6);
+        vertical-align: top;
+        color: #cbd5e1;
+      }
+      table.triage-table tbody tr:nth-child(even) td {
+        background: rgba(255, 255, 255, 0.015);
+      }
+      table.triage-table tbody tr:hover td {
+        background: rgba(52, 211, 153, 0.06);
+      }
+      td.cell-host {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--text);
+        max-width: 14rem;
+        word-break: break-all;
+      }
+      td.cell-notes {
+        font-size: 0.78rem;
+        color: var(--muted);
+        max-width: 24rem;
+      }
+      td.cell-score {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        color: var(--warn);
+        font-family: var(--mono);
+      }
+      .hp {
+        display: inline-block;
+        padding: 0.12rem 0.45rem;
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        font-weight: 600;
+        line-height: 1.35;
+      }
+      .hp.ok {
+        background: #064e3b;
+        color: #a7f3d0;
+      }
+      .hp.gate {
+        background: #78350f;
+        color: #fde68a;
+      }
+      .hp.redir {
+        background: #1e3a5f;
+        color: #93c5fd;
+      }
+      .hp.dead {
+        background: #451a1a;
+        color: #fca5a5;
+      }
+      .hp.muted {
+        background: #1e293b;
+        color: var(--muted);
+      }
+      .phase-rail-wrap {
+        margin-top: 0.85rem;
+      }
+      .phase-rail {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: stretch;
+      }
+      .phase-node {
+        flex: 1;
+        min-width: 4.75rem;
+        text-align: center;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.45rem 0.35rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          color 0.2s ease;
+      }
+      .phase-node.pending {
+        opacity: 0.45;
+      }
+      .phase-node.active {
+        opacity: 1;
+        border-color: var(--accent-dim);
+        color: var(--accent);
+        background: rgba(52, 211, 153, 0.09);
+        box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.12);
+      }
+      .phase-node.done {
+        opacity: 1;
+        border-color: #374151;
+        color: #9ca3af;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .overview-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        gap: 0.75rem;
+        padding: 1rem;
+      }
+      .ov-tile {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.85rem 0.95rem;
+      }
+      .ov-tile .num {
+        font-size: 1.4rem;
+        font-weight: 700;
+        font-family: var(--mono);
+        color: var(--accent);
+        line-height: 1.15;
+      }
+      .ov-tile .lbl {
+        font-size: 0.7rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 0.35rem;
+      }
+      .ov-block {
+        padding: 0 1rem 1rem;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      .ov-block h4 {
+        margin: 0 0 0.5rem;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .ov-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .ov-chip {
+        font-size: 0.78rem;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(30, 41, 59, 0.85);
+        border: 1px solid var(--border);
+        color: #e2e8f0;
+      }
+      .ov-top-targets {
+        margin: 0;
+        padding-left: 1rem;
+        font-size: 0.82rem;
+        color: #cbd5e1;
+      }
+      .agent-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+      .agent-table th,
+      .agent-table td {
+        text-align: left;
+        padding: 0.55rem 1rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      .agent-table th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        width: 26%;
+      }
+      .agent-table code {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--accent);
+      }
+      .muted-block {
+        padding: 0 1rem 1rem;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.55;
+      }
+      .section-grid-inner {
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div class="brand">
+          <h1>D1gger Visualiser</h1>
+          <p>
+            <strong>Human view:</strong> run recon, watch the pipeline advance,
+            skim triage as a grid, peek raw slices.
+            <strong>Agent hooks:</strong> the same artifacts are served over
+            HTTP — point
+            <a href="https://hackfast.co" target="_blank" rel="noopener"
+              >hackfast.co</a
+            >
+            (or any tool) at <code>/api/agent</code> for a stable contract plus
+            <code>/docs</code> for OpenAPI.
+          </p>
+        </div>
+        <div class="nav-links">
+          <span class="pill"
+            ><a href="/api/agent" target="_blank">Agent manifest</a></span
+          >
+          <span class="pill"
+            >API
+            <a href="/docs" target="_blank" rel="noreferrer">OpenAPI</a></span
+          >
+          <span class="pill">Health <code id="healthOut">…</code></span>
+        </div>
+      </header>
 
-    function appendScanLog(line) {
-      ingestPipelineLine(line);
-      const logEl = el('scanLog');
-      logEl.textContent += line + '\n';
-      logEl.scrollTop = logEl.scrollHeight;
-    }
+      <section class="panel" style="margin-top: 0">
+        <div class="panel-h">
+          <h2>Active recon</h2>
+          <div class="nav-links">
+            <span class="pill"
+              >Writes to
+              <span class="chip-path" id="outDirHint" title="">…</span></span
+            >
+          </div>
+        </div>
+        <div style="padding: 1rem 1rem 1.1rem">
+          <form id="scanForm" class="scan-form-row">
+            <label
+              class="field"
+              style="flex: 1; min-width: 200px; max-width: 22rem; margin: 0"
+              >Target domain
+              <input
+                type="text"
+                id="scanDomain"
+                name="domain"
+                placeholder="target.com"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <div class="checks">
+              <label class="chk"
+                ><input type="checkbox" id="chkScanNoHttp" /> Skip HTTP
+                probing</label
+              >
+              <label class="chk"
+                ><input type="checkbox" id="chkScanNoSf" /> Skip subfinder
+                fallback</label
+              >
+            </div>
+            <button type="submit" class="primary" id="btnScan">
+              Start scan
+            </button>
+          </form>
+          <div class="scan-status-line">
+            <span id="scanStatusBadge">Idle</span
+            ><span id="scanDomainHint"></span>
+          </div>
+          <div class="phase-rail-wrap">
+            <div class="phase-rail" id="phaseRail">
+              <div
+                class="phase-node pending"
+                data-i="0"
+                title="CRT / subfinder"
+              >
+                Enum
+              </div>
+              <div
+                class="phase-node pending"
+                data-i="1"
+                title="Bulk DNS resolve"
+              >
+                DNS
+              </div>
+              <div
+                class="phase-node pending"
+                data-i="2"
+                title="TXT / MX / NS / root"
+              >
+                Root DNS
+              </div>
+              <div
+                class="phase-node pending"
+                data-i="3"
+                title="Heuristic third-party cues"
+              >
+                Signals
+              </div>
+              <div
+                class="phase-node pending"
+                data-i="4"
+                title="curl HTTP/HTTPS"
+              >
+                HTTP
+              </div>
+              <div
+                class="phase-node pending"
+                data-i="5"
+                title="Scored triage CSV"
+              >
+                Rank
+              </div>
+              <div
+                class="phase-node pending"
+                data-i="6"
+                title="_summary.json and friends"
+              >
+                Saved
+              </div>
+            </div>
+          </div>
+          <pre class="view scan-log" id="scanLog">
+Scan output streams here once you start — the lanes above infer progress from stdout.</pre
+          >
+        </div>
+      </section>
 
-    function resetPipeline() {
-      pipelineIdx = -1;
-      renderPipeline();
-    }
+      <section class="run-bar">
+        <label class="field">
+          Saved run
+          <select id="runSelect" disabled>
+            <option value="">Loading runs…</option>
+          </select>
+        </label>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap">
+          <button type="button" class="primary" id="btnRefresh">
+            Refresh runs
+          </button>
+        </div>
+      </section>
 
-    function ingestPipelineLine(line) {
-      let i = pipelineIdx;
-      if (/Phase\s*1a|Phase\s*1b/i.test(line)) i = Math.max(i, 0);
-      else if (/Phase\s*2:\s*DNS/i.test(line)) i = Math.max(i, 1);
-      else if (/Fetching DNS records for root/i.test(line)) i = Math.max(i, 2);
-      else if (/Phase\s*4:\s*Third-party/i.test(line)) i = Math.max(i, 3);
-      else if (/Phase\s*3:\s*HTTP/i.test(line)) i = Math.max(i, 4);
-      else if (/Phase\s*5:\s*Triage/i.test(line)) i = Math.max(i, 5);
-      else if (/Saved:.*_summary\.json/i.test(line)) i = Math.max(i, 6);
-      if (i !== pipelineIdx) {
-        pipelineIdx = i;
+      <section class="panel" style="margin-top: 1.25rem">
+        <div class="panel-h">
+          <h2>Run snapshot</h2>
+        </div>
+        <div id="runOverviewBody">
+          <p class="empty" style="margin: 0; padding: 2rem 1rem">
+            Choose a recon run above — pulls <code>_summary.json</code> counts,
+            third‑party guesses, top targets.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top: 1.25rem">
+        <div class="panel-h">
+          <h2>Triage matrix</h2>
+          <div class="panel-actions">
+            <button type="button" class="ghost" id="btnTriageReload">
+              Reload table
+            </button>
+          </div>
+        </div>
+        <div class="table-scroll" id="triageTableWrap">
+          <p
+            class="empty triage-placeholder"
+            style="margin: 0; padding: 2rem 1rem"
+          >
+            Select a recon run below — triage renders as an interactive table
+            (sort by column).
+          </p>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top: 1.25rem">
+        <div class="panel-h"><h2>Artifact slices</h2></div>
+        <div class="section-grid-inner">
+          <div id="sectionGrid" class="grid" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-h">
+          <h2 id="viewerTitle">Raw slice viewer</h2>
+          <div class="panel-actions">
+            <button type="button" class="ghost" id="btnCopyView" disabled>
+              Copy
+            </button>
+            <button type="button" class="ghost" id="btnDownloadView" disabled>
+              Download
+            </button>
+          </div>
+        </div>
+        <pre class="view" id="viewer">Pick an artifact slice above.</pre>
+        <p class="hint" id="viewerHint"></p>
+      </section>
+
+      <section class="panel" style="margin-top: 1.25rem">
+        <div class="panel-h">
+          <h2>LLM / agent bundle (preview)</h2>
+          <div class="panel-actions">
+            <button type="button" class="primary" id="btnLoadBundle" disabled>
+              Load preview
+            </button>
+            <button type="button" class="ghost" id="btnCopyBundle" disabled>
+              Copy all
+            </button>
+            <button type="button" class="ghost" id="btnOpenBundle" disabled>
+              Open raw
+            </button>
+          </div>
+        </div>
+        <p class="muted-block" style="padding-top: 0.75rem">
+          Canonical multi-section document agents should fetch:
+          <code id="bundleUrlHint"></code>
+        </p>
+        <pre
+          class="view"
+          id="bundle"
+          style="max-height: 480px"
+        >Load the stitched plaintext (same payload hackfast tooling would pull from <code>GET …/llm.txt</code>).</pre>
+        <p class="hint" id="bundleHint"></p>
+      </section>
+
+      <section class="panel" style="margin-top: 1.25rem">
+        <div class="panel-h">
+          <h2>hackfast.co · agent endpoints</h2>
+          <div class="panel-actions">
+            <a
+              class="pill"
+              href="/api/agent"
+              target="_blank"
+              style="color: inherit; text-decoration: none"
+              >GET /api/agent</a
+            >
+          </div>
+        </div>
+        <p class="muted-block">
+          Wire your agent against this server’s origin. Read the manifest first
+          — it describes <code>recommended_flow</code> and enumerates artifact
+          sections (<code>subdomains_all</code>, …, <code>summary</code>).
+          Humans use the dashboard; agents consume JSON / plaintext below.
+        </p>
+        <table class="agent-table">
+          <thead>
+            <tr>
+              <th>Intent</th>
+              <th>HTTP</th>
+            </tr>
+          </thead>
+          <tbody id="agentTableBody">
+            <tr>
+              <td>Discovery &amp; handshake</td>
+              <td>
+                <code>GET /api/agent</code> · <code>GET /api/health</code>
+              </td>
+            </tr>
+            <tr>
+              <td>List finished runs</td>
+              <td><code>GET /api/runs</code></td>
+            </tr>
+            <tr>
+              <td>Summary JSON</td>
+              <td><code>GET /api/runs/{run_id}/summary</code></td>
+            </tr>
+            <tr>
+              <td>Which files landed on disk</td>
+              <td><code>GET /api/runs/{run_id}/sections</code></td>
+            </tr>
+            <tr>
+              <td>Triage rows (nice for codegen)</td>
+              <td><code>GET /api/runs/{run_id}/section/triage/table</code></td>
+            </tr>
+            <tr>
+              <td>Single artifact as text</td>
+              <td>
+                <code>GET /api/runs/{run_id}/section/{section}/text</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Combined LLM context</td>
+              <td><code>GET /api/runs/{run_id}/llm.txt</code></td>
+            </tr>
+            <tr>
+              <td>Kick off recon (streaming)</td>
+              <td><code>POST /api/scan</code> (SSE events)</td>
+            </tr>
+          </tbody>
+        </table>
+        <pre
+          class="view"
+          id="curlSnippets"
+          style="
+            margin-top: 0;
+            border-top: none;
+            max-height: none;
+            font-size: 0.78rem;
+          "
+        >
+—</pre
+        >
+      </section>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+      const META = {
+        subdomains_all: "Certificate transparency names (crt.sh harvest).",
+        subdomains_live: "Hosts that resolved to IPv4 in this run.",
+        subdomains_dead: "Names that did not resolve via DNS.",
+        triage: "CSV with IPs, HTTP(S) statuses, heuristic score.",
+        summary: "JSON rollup: counts, third-party hints, top targets.",
+      };
+
+      const el = (id) => document.getElementById(id);
+      let currentRunId = "";
+      let currentSection = "";
+      let currentViewerText = "";
+      let lastBundleUrl = "";
+
+      let triageSort = { column: null, dir: 1 };
+      let scanRunning = false;
+      let triageData = { cols: [], rows: [] };
+      let pipelineIdx = -1;
+
+      function encRun(id) {
+        return encodeURIComponent(id);
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      }
+
+      function api(path) {
+        return fetch(path, {
+          headers: { Accept: "application/json,text/plain,*/*" },
+        });
+      }
+
+      async function pingHealth() {
+        try {
+          const r = await api("/api/health");
+          const j = await r.json();
+          el("healthOut").textContent = j.ok ? "ok" : "err";
+          const od = el("outDirHint");
+          if (od && j.output_dir) {
+            od.textContent = j.output_dir;
+            od.title = j.output_dir;
+          }
+        } catch {
+          el("healthOut").textContent = "err";
+        }
+      }
+
+      function appendScanLog(line) {
+        ingestPipelineLine(line);
+        const logEl = el("scanLog");
+        logEl.textContent += line + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function resetPipeline() {
+        pipelineIdx = -1;
         renderPipeline();
       }
-    }
 
-    function renderPipeline() {
-      const rail = el('phaseRail');
-      if (!rail) return;
-      rail.querySelectorAll('.phase-node').forEach((node, idx) => {
-        node.classList.remove('pending', 'active', 'done');
-        if (pipelineIdx < 0) node.classList.add('pending');
-        else if (idx < pipelineIdx) node.classList.add('done');
-        else if (idx === pipelineIdx) node.classList.add('active');
-        else node.classList.add('pending');
-      });
-    }
+      function ingestPipelineLine(line) {
+        let i = pipelineIdx;
+        const phaseMatch = line.match(/Phase\s*(\d+)\/7/i);
+        if (phaseMatch) {
+          i = Math.max(i, parseInt(phaseMatch[1], 10) - 1);
+        } else if (/Run saved/i.test(line)) {
+          i = Math.max(i, 6);
+        }
+        if (i !== pipelineIdx) {
+          pipelineIdx = i;
+          renderPipeline();
+        }
+      }
 
-    function markPipelineComplete() {
-      const rail = el('phaseRail');
-      if (!rail) return;
-      rail.querySelectorAll('.phase-node').forEach((node) => {
-        node.classList.remove('pending', 'active');
-        node.classList.add('done');
-      });
-    }
+      function renderPipeline() {
+        const rail = el("phaseRail");
+        if (!rail) return;
+        rail.querySelectorAll(".phase-node").forEach((node, idx) => {
+          node.classList.remove("pending", "active", "done");
+          if (pipelineIdx < 0) node.classList.add("pending");
+          else if (idx < pipelineIdx) node.classList.add("done");
+          else if (idx === pipelineIdx) node.classList.add("active");
+          else node.classList.add("pending");
+        });
+      }
 
-    async function consumeSseResponse(res, onEvent) {
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let sep;
-        while ((sep = buf.indexOf('\n\n')) >= 0) {
-          const chunk = buf.slice(0, sep);
-          buf = buf.slice(sep + 2);
-          for (const ln of chunk.split('\n')) {
-            if (!ln.startsWith('data:')) continue;
-            const raw = ln.slice(5).trimStart();
-            try { onEvent(JSON.parse(raw)); } catch (_) { /* ignore */ }
+      function markPipelineComplete() {
+        const rail = el("phaseRail");
+        if (!rail) return;
+        rail.querySelectorAll(".phase-node").forEach((node) => {
+          node.classList.remove("pending", "active");
+          node.classList.add("done");
+        });
+      }
+
+      async function consumeSseResponse(res, onEvent) {
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let sep;
+          while ((sep = buf.indexOf("\n\n")) >= 0) {
+            const chunk = buf.slice(0, sep);
+            buf = buf.slice(sep + 2);
+            for (const ln of chunk.split("\n")) {
+              if (!ln.startsWith("data:")) continue;
+              const raw = ln.slice(5).trimStart();
+              try {
+                onEvent(JSON.parse(raw));
+              } catch (_) {
+                /* ignore */
+              }
+            }
           }
         }
       }
-    }
 
-    async function loadTriageTable() {
-      const wrap = el('triageTableWrap');
-      if (!currentRunId) {
-        wrap.innerHTML = '<p class="empty triage-placeholder" style="margin:0;padding:2rem 1rem;">Select a recon run — triage renders here.</p>';
-        return;
-      }
-      wrap.innerHTML = '<p class="empty" style="margin:0;padding:2rem 1rem;">Loading triage…</p>';
-      const r = await fetch('/api/runs/' + encRun(currentRunId) + '/section/triage/table');
-      if (!r.ok) {
+      async function loadTriageTable() {
+        const wrap = el("triageTableWrap");
+        if (!currentRunId) {
+          wrap.innerHTML =
+            '<p class="empty triage-placeholder" style="margin:0;padding:2rem 1rem;">Select a recon run — triage renders here.</p>';
+          return;
+        }
         wrap.innerHTML =
-          '<p class="empty triage-placeholder" style="margin:0;padding:2rem 1rem;color:var(--danger)">No triage CSV for this run (HTTP ' +
-          r.status + ').</p>';
-        return;
-      }
-      const data = await r.json();
-      const cols = data.columns || [];
-      const rows = (data.rows || []).map((row) => Object.assign({}, row));
-      triageData = { cols, rows };
-      triageSort = { column: null, dir: 1 };
-      renderTriageMatrix(cols.slice(), rows.slice());
-    }
-
-    function cellClassForHeader(h) {
-      const k = String(h).toLowerCase();
-      if (k.includes('subdomain') || k.includes('host')) return 'cell-host';
-      if (k === 'score') return 'cell-score';
-      if (k.includes('notes')) return 'cell-notes';
-      return '';
-    }
-
-    function statusPill(raw) {
-      const s = String(raw == null ? '-' : raw).trim() || '-';
-      if (s === '200') return '<span class="hp ok">200</span>';
-      if (s === '403' || s === '401') return '<span class="hp gate">' + escapeHtml(s) + '</span>';
-      if (s === '302' || s.startsWith('301') || s.startsWith('30')) return '<span class="hp redir">' + escapeHtml(s) + '</span>';
-      if (s === 'timeout' || s === '000' || s === '-') return '<span class="hp dead">' + escapeHtml(s) + '</span>';
-      return '<span class="hp muted">' + escapeHtml(s) + '</span>';
-    }
-
-    function renderTriageMatrix(columns, rows) {
-      const wrap = el('triageTableWrap');
-      if (!columns.length) {
-        wrap.innerHTML = '<p class="empty">Triage file has no columns.</p>';
-        return;
-      }
-
-      const thead = document.createElement('thead');
-      const trh = document.createElement('tr');
-      columns.forEach((c) => {
-        const th = document.createElement('th');
-        th.textContent = c;
-        th.dataset.sortkey = c;
-        const sortState = triageSort.column === c ? (triageSort.dir > 0 ? '▲' : '▼') : '';
-        th.dataset.sortdir = sortState;
-        if (triageSort.column === c) th.classList.add('sorted');
-        th.addEventListener('click', () => {
-          if (triageSort.column === c) triageSort.dir *= -1;
-          else {
-            triageSort.column = c;
-            triageSort.dir = /score|status|https|http/i.test(c) ? -1 : 1;
-          }
-          const sorted = triageData.rows.slice();
-          sortTriageRowsInPlace(sorted, triageSort.column, triageSort.dir);
-          renderTriageMatrix(triageData.cols.slice(), sorted);
-        });
-        trh.appendChild(th);
-      });
-      thead.appendChild(trh);
-
-      const tb = document.createElement('tbody');
-      rows.forEach((row) => {
-        const tr = document.createElement('tr');
-        columns.forEach((c) => {
-          const td = document.createElement('td');
-          td.className = cellClassForHeader(c);
-          let v = row[c] != null ? String(row[c]) : '';
-          const lk = c.toLowerCase();
-          if (lk === 'https_status' || lk === 'http_status' || lk.endsWith('_status')) {
-            td.innerHTML = statusPill(v);
-          } else {
-            td.textContent = v;
-            if (lk.includes('notes')) td.title = v;
-          }
-          tr.appendChild(td);
-        });
-        tb.appendChild(tr);
-      });
-
-      const table = document.createElement('table');
-      table.className = 'triage-table';
-      table.appendChild(thead);
-      table.appendChild(tb);
-      wrap.innerHTML = '';
-      wrap.appendChild(table);
-    }
-
-    function sortTriageRowsInPlace(rows, col, dir) {
-      const numeric = /score|^https_status$|^http_status$/i.test(col);
-      rows.sort((a, b) => {
-        let va = a[col] ?? '';
-        let vb = b[col] ?? '';
-        if (numeric) {
-          va = Number.parseInt(va, 10);
-          vb = Number.parseInt(vb, 10);
-          const na = Number.isFinite(va) ? va : -99999;
-          const nb = Number.isFinite(vb) ? vb : -99999;
-          return na === nb ? 0 : (na < nb ? -1 : 1) * dir;
+          '<p class="empty" style="margin:0;padding:2rem 1rem;">Loading triage…</p>';
+        const r = await fetch(
+          "/api/runs/" + encRun(currentRunId) + "/section/triage/table",
+        );
+        if (!r.ok) {
+          wrap.innerHTML =
+            '<p class="empty triage-placeholder" style="margin:0;padding:2rem 1rem;color:var(--danger)">No triage CSV for this run (HTTP ' +
+            r.status +
+            ").</p>";
+          return;
         }
-        return String(va).localeCompare(String(vb), undefined, { numeric: true, sensitivity: 'base' }) * dir;
-      });
-    }
-
-    function showToast(msg) {
-      const t = el('toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      clearTimeout(t._hid);
-      t._hid = setTimeout(() => t.classList.remove('show'), 2200);
-    }
-
-    async function loadRuns(preselectRunId) {
-      const sel = el('runSelect');
-      sel.innerHTML = '<option value="">Loading…</option>';
-      sel.disabled = true;
-      const r = await api('/api/runs');
-      if (!r.ok) {
-        sel.innerHTML = '<option value="">Could not load runs</option>';
-        return;
+        const data = await r.json();
+        const cols = data.columns || [];
+        const rows = (data.rows || []).map((row) => Object.assign({}, row));
+        triageData = { cols, rows };
+        triageSort = { column: null, dir: 1 };
+        renderTriageMatrix(cols.slice(), rows.slice());
       }
-      const data = await r.json();
-      const runs = data.runs || [];
-      sel.innerHTML = '';
-      if (!runs.length) {
-        sel.innerHTML = '<option value="">No *_summary.json in output dir yet</option>';
-      } else {
-        runs.forEach((run) => {
-          const opt = document.createElement('option');
-          opt.value = run.run_id;
-          const lo = run.subdomains_live != null ? run.subdomains_live : '?';
-          const tot = run.subdomains_found != null ? run.subdomains_found : '?';
-          const label = [run.target || 'unknown', run.timestamp || '', '(' + lo + '/' + tot + ' live/found)'].filter(Boolean).join(' · ');
-          opt.textContent = label;
-          sel.appendChild(opt);
+
+      function cellClassForHeader(h) {
+        const k = String(h).toLowerCase();
+        if (k.includes("subdomain") || k.includes("host")) return "cell-host";
+        if (k === "score") return "cell-score";
+        if (k.includes("notes")) return "cell-notes";
+        return "";
+      }
+
+      function statusPill(raw) {
+        const s = String(raw == null ? "-" : raw).trim() || "-";
+        if (s === "200") return '<span class="hp ok">200</span>';
+        if (s === "403" || s === "401")
+          return '<span class="hp gate">' + escapeHtml(s) + "</span>";
+        if (s === "302" || s.startsWith("301") || s.startsWith("30"))
+          return '<span class="hp redir">' + escapeHtml(s) + "</span>";
+        if (s === "timeout" || s === "000" || s === "-")
+          return '<span class="hp dead">' + escapeHtml(s) + "</span>";
+        return '<span class="hp muted">' + escapeHtml(s) + "</span>";
+      }
+
+      function renderTriageMatrix(columns, rows) {
+        const wrap = el("triageTableWrap");
+        if (!columns.length) {
+          wrap.innerHTML = '<p class="empty">Triage file has no columns.</p>';
+          return;
+        }
+
+        const thead = document.createElement("thead");
+        const trh = document.createElement("tr");
+        columns.forEach((c) => {
+          const th = document.createElement("th");
+          th.textContent = c;
+          th.dataset.sortkey = c;
+          const sortState =
+            triageSort.column === c ? (triageSort.dir > 0 ? "▲" : "▼") : "";
+          th.dataset.sortdir = sortState;
+          if (triageSort.column === c) th.classList.add("sorted");
+          th.addEventListener("click", () => {
+            if (triageSort.column === c) triageSort.dir *= -1;
+            else {
+              triageSort.column = c;
+              triageSort.dir = /score|status|https|http/i.test(c) ? -1 : 1;
+            }
+            const sorted = triageData.rows.slice();
+            sortTriageRowsInPlace(sorted, triageSort.column, triageSort.dir);
+            renderTriageMatrix(triageData.cols.slice(), sorted);
+          });
+          trh.appendChild(th);
         });
-        const pick = preselectRunId && [...sel.options].some((o) => o.value === preselectRunId)
-          ? preselectRunId
-          : runs[0].run_id;
-        sel.value = pick;
-        currentRunId = pick;
-      }
-      sel.disabled = runs.length === 0;
-      if (runs.length) await refreshSections();
-      else {
-        el('triageTableWrap').innerHTML =
-          '<p class="empty triage-placeholder" style="margin:0;padding:2rem 1rem;">No runs yet — start a scan above.</p>';
-        el('runOverviewBody').innerHTML =
-          '<p class="empty" style="margin:0;padding:2rem 1rem;">No runs yet — start a scan above.</p>';
-      }
-      renderCurls();
-      el('btnLoadBundle').disabled = !runs.length;
-    }
+        thead.appendChild(trh);
 
-    async function refreshSections() {
-      const sel = el('runSelect');
-      currentRunId = sel.value || currentRunId;
-      const gid = el('sectionGrid');
-      gid.innerHTML = '';
+        const tb = document.createElement("tbody");
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          columns.forEach((c) => {
+            const td = document.createElement("td");
+            td.className = cellClassForHeader(c);
+            let v = row[c] != null ? String(row[c]) : "";
+            const lk = c.toLowerCase();
+            if (
+              lk === "https_status" ||
+              lk === "http_status" ||
+              lk.endsWith("_status")
+            ) {
+              td.innerHTML = statusPill(v);
+            } else {
+              td.textContent = v;
+              if (lk.includes("notes")) td.title = v;
+            }
+            tr.appendChild(td);
+          });
+          tb.appendChild(tr);
+        });
 
-      if (!currentRunId) {
-        gid.innerHTML = '<p class="empty">Run a recon, then refresh.</p>';
-        el('bundle').textContent = 'No run selected.';
-        el('bundleHint').textContent = '';
-        await loadTriageTable();
-        await loadRunOverview();
+        const table = document.createElement("table");
+        table.className = "triage-table";
+        table.appendChild(thead);
+        table.appendChild(tb);
+        wrap.innerHTML = "";
+        wrap.appendChild(table);
+      }
+
+      function sortTriageRowsInPlace(rows, col, dir) {
+        const numeric = /score|^https_status$|^http_status$/i.test(col);
+        rows.sort((a, b) => {
+          let va = a[col] ?? "";
+          let vb = b[col] ?? "";
+          if (numeric) {
+            va = Number.parseInt(va, 10);
+            vb = Number.parseInt(vb, 10);
+            const na = Number.isFinite(va) ? va : -99999;
+            const nb = Number.isFinite(vb) ? vb : -99999;
+            return na === nb ? 0 : (na < nb ? -1 : 1) * dir;
+          }
+          return (
+            String(va).localeCompare(String(vb), undefined, {
+              numeric: true,
+              sensitivity: "base",
+            }) * dir
+          );
+        });
+      }
+
+      function showToast(msg) {
+        const t = el("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(t._hid);
+        t._hid = setTimeout(() => t.classList.remove("show"), 2200);
+      }
+
+      async function loadRuns(preselectRunId) {
+        const sel = el("runSelect");
+        sel.innerHTML = '<option value="">Loading…</option>';
+        sel.disabled = true;
+        const r = await api("/api/runs");
+        if (!r.ok) {
+          sel.innerHTML = '<option value="">Could not load runs</option>';
+          return;
+        }
+        const data = await r.json();
+        const runs = data.runs || [];
+        sel.innerHTML = "";
+        if (!runs.length) {
+          sel.innerHTML =
+            '<option value="">No *_summary.json in output dir yet</option>';
+        } else {
+          runs.forEach((run) => {
+            const opt = document.createElement("option");
+            opt.value = run.run_id;
+            const lo = run.subdomains_live != null ? run.subdomains_live : "?";
+            const tot =
+              run.subdomains_found != null ? run.subdomains_found : "?";
+            const label = [
+              run.target || "unknown",
+              run.timestamp || "",
+              "(" + lo + "/" + tot + " live/found)",
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            opt.textContent = label;
+            sel.appendChild(opt);
+          });
+          const pick =
+            preselectRunId &&
+            [...sel.options].some((o) => o.value === preselectRunId)
+              ? preselectRunId
+              : runs[0].run_id;
+          sel.value = pick;
+          currentRunId = pick;
+        }
+        sel.disabled = runs.length === 0;
+        if (runs.length) await refreshSections();
+        else {
+          el("triageTableWrap").innerHTML =
+            '<p class="empty triage-placeholder" style="margin:0;padding:2rem 1rem;">No runs yet — start a scan above.</p>';
+          el("runOverviewBody").innerHTML =
+            '<p class="empty" style="margin:0;padding:2rem 1rem;">No runs yet — start a scan above.</p>';
+        }
         renderCurls();
-        return;
+        el("btnLoadBundle").disabled = !runs.length;
       }
 
-      const r = await api('/api/runs/' + encRun(currentRunId) + '/sections');
-      if (!r.ok) {
-        gid.innerHTML = '<p class="empty">Could not inspect run.</p>';
-        await loadTriageTable();
-        await loadRunOverview();
-        return;
-      }
-      const payload = await r.json();
-      Object.entries(payload.sections || {}).forEach(([key, info]) => {
-        const card = document.createElement('article');
-        card.className = 'card';
-        const title = META[key] || key;
-        const badge = info.present
-          ? '<span class="badge ok">present</span>'
-          : '<span class="badge miss">missing</span>';
-        card.innerHTML = `
+      async function refreshSections() {
+        const sel = el("runSelect");
+        currentRunId = sel.value || currentRunId;
+        const gid = el("sectionGrid");
+        gid.innerHTML = "";
+
+        if (!currentRunId) {
+          gid.innerHTML = '<p class="empty">Run a recon, then refresh.</p>';
+          el("bundle").textContent = "No run selected.";
+          el("bundleHint").textContent = "";
+          await loadTriageTable();
+          await loadRunOverview();
+          renderCurls();
+          return;
+        }
+
+        const r = await api("/api/runs/" + encRun(currentRunId) + "/sections");
+        if (!r.ok) {
+          gid.innerHTML = '<p class="empty">Could not inspect run.</p>';
+          await loadTriageTable();
+          await loadRunOverview();
+          return;
+        }
+        const payload = await r.json();
+        Object.entries(payload.sections || {}).forEach(([key, info]) => {
+          const card = document.createElement("article");
+          card.className = "card";
+          const title = META[key] || key;
+          const badge = info.present
+            ? '<span class="badge ok">present</span>'
+            : '<span class="badge miss">missing</span>';
+          card.innerHTML = `
           <h3>${key}${badge}</h3>
           <p class="desc">${title}</p>
           <div class="card-actions">
-            <button type="button" data-section="${key}" data-mode="text" ${info.present ? '' : 'disabled'}>View text</button>
-            <button type="button" class="ghost" data-section="${key}" data-mode="raw" ${info.present ? '' : 'disabled'}>Raw file</button>
+            <button type="button" data-section="${key}" data-mode="text" ${info.present ? "" : "disabled"}>View text</button>
+            <button type="button" class="ghost" data-section="${key}" data-mode="raw" ${info.present ? "" : "disabled"}>Raw file</button>
           </div>`;
-        gid.appendChild(card);
-      });
-
-      gid.querySelectorAll('button[data-section]').forEach(btn => {
-        btn.addEventListener('click', () => openSection(btn.dataset.section, btn.dataset.mode));
-      });
-
-      renderCurls();
-      await loadTriageTable();
-      await loadRunOverview();
-    }
-
-    async function openSection(section, mode) {
-      currentSection = section;
-      el('viewerTitle').textContent = 'Raw slice — ' + section;
-      el('viewer').textContent = 'Loading…';
-      el('viewerHint').textContent = '';
-      currentViewerText = '';
-
-      const base = '/api/runs/' + encRun(currentRunId) + '/section/' + encodeURIComponent(section) + '/' + mode;
-      if (mode === 'raw') {
-        window.open(base, '_blank');
-        showToast('Opened raw download in new tab.');
-        el('viewer').textContent = 'Opened raw file in a new tab.';
-        el('btnCopyView').disabled = true;
-        el('btnDownloadView').disabled = true;
-        return;
-      }
-
-      const r = await fetch(base, { headers: { 'Accept': 'text/plain;charset=utf-8' } });
-      if (!r.ok) {
-        el('viewer').textContent = 'Error ' + r.status;
-        el('btnCopyView').disabled = true;
-        el('btnDownloadView').disabled = true;
-        return;
-      }
-      const txt = await r.text();
-      currentViewerText = txt;
-      el('viewer').textContent = txt;
-      el('viewerHint').innerHTML =
-        '<code>' + escapeHtml(base) + '</code>';
-      el('btnCopyView').disabled = false;
-      el('btnDownloadView').disabled = false;
-      showToast('Loaded ' + section);
-    }
-
-    async function loadRunOverview() {
-      const body = el('runOverviewBody');
-      if (!currentRunId) {
-        body.innerHTML =
-          '<p class="empty" style="margin:0;padding:2rem 1rem;">Select a recon run above for aggregates from <code>_summary.json</code>.</p>';
-        return;
-      }
-      body.innerHTML = '<p class="empty" style="margin:0;padding:2rem;">Loading overview…</p>';
-      try {
-        const r = await fetch('/api/runs/' + encRun(currentRunId) + '/summary');
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const s = await r.json();
-        const n = (v) => (v != null && v !== '' ? v : '?');
-        let dead = '?';
-        if (s.subdomains_dead != null) dead = s.subdomains_dead;
-        else if (
-          s.subdomains_found != null &&
-          s.subdomains_live != null &&
-          Number.isFinite(Number(s.subdomains_found)) &&
-          Number.isFinite(Number(s.subdomains_live))
-        ) dead = Math.max(0, Number(s.subdomains_found) - Number(s.subdomains_live));
-        const parties = Array.isArray(s.third_parties) ? s.third_parties : [];
-        const tops = Array.isArray(s.top_targets) ? s.top_targets : [];
-        let html =
-          '<div class="overview-stats">' +
-          `<div class="ov-tile"><div class="num">${escapeHtml(String(n(s.subdomains_found)))}</div><div class="lbl">Discovered names</div></div>` +
-          `<div class="ov-tile"><div class="num">${escapeHtml(String(n(s.subdomains_live)))}</div><div class="lbl">DNS live</div></div>` +
-          `<div class="ov-tile"><div class="num">${escapeHtml(String(dead))}</div><div class="lbl">Unresolved / dead</div></div>` +
-          `<div class="ov-tile"><div class="num">${escapeHtml(String(parties.length))}</div><div class="lbl">Third-party signals</div></div>` +
-          '</div>' +
-          '<div class="ov-block"><strong>' +
-          escapeHtml(String(s.target || '')) +
-          '</strong> · run <code>' +
-          escapeHtml(String(s.run_id || currentRunId)) +
-          '</code> · <code>' +
-          escapeHtml(String(n(s.timestamp))) +
-          '</code></div>';
-        if (parties.length) {
-          html +=
-            '<div class="ov-block"><h4>Heuristic host / DNS signals</h4><div class="ov-chip-row">' +
-            parties
-              .map(
-                (p) =>
-                  '<span class="ov-chip" title="' +
-                  escapeHtml(p.note || '') +
-                  '">' +
-                  escapeHtml(String(p.service || '?')) +
-                  '</span>'
-              )
-              .join('') +
-            '</div></div>';
-        }
-        if (tops.length) {
-          html +=
-            '<div class="ov-block"><h4>Top scored hosts</h4><ul class="ov-top-targets">' +
-            tops
-              .slice(0, 8)
-              .map((t) => {
-                const nn = t.notes ? String(t.notes) : '';
-                return (
-                  '<li><code>' +
-                  escapeHtml(String(t.subdomain || '')) +
-                  '</code> · score <strong>' +
-                  escapeHtml(String(t.score ?? '')) +
-                  '</strong> · HTTPS ' +
-                  escapeHtml(String(t.https_status || '-')) +
-                  (nn ? ' · <span title="' + escapeHtml(nn) + '">' + escapeHtml(nn.slice(0, 160)) + (nn.length > 160 ? '…' : '') + '</span>' : '') +
-                  '</li>'
-                );
-              })
-              .join('') +
-            '</ul></div>';
-        }
-        body.innerHTML = html;
-      } catch (_) {
-        body.innerHTML =
-          '<p class="empty" style="margin:0;padding:2rem 1rem;color:var(--danger)">Could not load summary for this run.</p>';
-      }
-    }
-
-    el('scanForm').addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      if (scanRunning) return;
-      const domain = el('scanDomain').value.trim().toLowerCase().replace(/\.+$/, '');
-      if (!domain) {
-        showToast('Enter a domain');
-        return;
-      }
-      scanRunning = true;
-      el('btnScan').disabled = true;
-      el('scanDomain').disabled = true;
-      el('chkScanNoHttp').disabled = true;
-      el('chkScanNoSf').disabled = true;
-      el('scanStatusBadge').textContent = 'Running…';
-      el('scanDomainHint').textContent = domain;
-      resetPipeline();
-      el('scanLog').textContent = '';
-      try {
-        const res = await fetch('/api/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-          body: JSON.stringify({
-            domain,
-            no_http: el('chkScanNoHttp').checked,
-            no_subfinder: el('chkScanNoSf').checked,
-          }),
+          gid.appendChild(card);
         });
-        if (res.status === 409) {
-          let detail = 'Another scan is already running.';
-          try {
-            const j = await res.json();
-            if (j.detail) detail = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail);
-          } catch (_) { /* ignore */ }
-          showToast(detail);
-          el('scanStatusBadge').textContent = 'Busy';
+
+        gid.querySelectorAll("button[data-section]").forEach((btn) => {
+          btn.addEventListener("click", () =>
+            openSection(btn.dataset.section, btn.dataset.mode),
+          );
+        });
+
+        renderCurls();
+        await loadTriageTable();
+        await loadRunOverview();
+      }
+
+      async function openSection(section, mode) {
+        currentSection = section;
+        el("viewerTitle").textContent = "Raw slice — " + section;
+        el("viewer").textContent = "Loading…";
+        el("viewerHint").textContent = "";
+        currentViewerText = "";
+
+        const base =
+          "/api/runs/" +
+          encRun(currentRunId) +
+          "/section/" +
+          encodeURIComponent(section) +
+          "/" +
+          mode;
+        if (mode === "raw") {
+          window.open(base, "_blank");
+          showToast("Opened raw download in new tab.");
+          el("viewer").textContent = "Opened raw file in a new tab.";
+          el("btnCopyView").disabled = true;
+          el("btnDownloadView").disabled = true;
           return;
         }
-        if (!res.ok || !res.body) {
-          showToast('Scan request failed (HTTP ' + res.status + ')');
-          el('scanStatusBadge').textContent = 'Error';
+
+        const r = await fetch(base, {
+          headers: { Accept: "text/plain;charset=utf-8" },
+        });
+        if (!r.ok) {
+          el("viewer").textContent = "Error " + r.status;
+          el("btnCopyView").disabled = true;
+          el("btnDownloadView").disabled = true;
           return;
         }
-        let finalRunId = null;
-        let exitCode = -1;
-        await consumeSseResponse(res, (obj) => {
-          if (obj.type === 'start') appendScanLog('── started: ' + (obj.domain || '') + ' ──');
-          else if (obj.type === 'log') appendScanLog(obj.line);
-          else if (obj.type === 'error') appendScanLog('ERROR ' + (obj.message || ''));
-          else if (obj.type === 'done') {
-            exitCode = obj.exit_code ?? -1;
-            finalRunId = obj.run_id || null;
-            appendScanLog('── done: exit=' + exitCode + (finalRunId ? ' run_id=' + finalRunId : '') + ' ──');
+        const txt = await r.text();
+        currentViewerText = txt;
+        el("viewer").textContent = txt;
+        el("viewerHint").innerHTML = "<code>" + escapeHtml(base) + "</code>";
+        el("btnCopyView").disabled = false;
+        el("btnDownloadView").disabled = false;
+        showToast("Loaded " + section);
+      }
+
+      async function loadRunOverview() {
+        const body = el("runOverviewBody");
+        if (!currentRunId) {
+          body.innerHTML =
+            '<p class="empty" style="margin:0;padding:2rem 1rem;">Select a recon run above for aggregates from <code>_summary.json</code>.</p>';
+          return;
+        }
+        body.innerHTML =
+          '<p class="empty" style="margin:0;padding:2rem;">Loading overview…</p>';
+        try {
+          const r = await fetch(
+            "/api/runs/" + encRun(currentRunId) + "/summary",
+          );
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const s = await r.json();
+          const n = (v) => (v != null && v !== "" ? v : "?");
+          let dead = "?";
+          if (s.subdomains_dead != null) dead = s.subdomains_dead;
+          else if (
+            s.subdomains_found != null &&
+            s.subdomains_live != null &&
+            Number.isFinite(Number(s.subdomains_found)) &&
+            Number.isFinite(Number(s.subdomains_live))
+          )
+            dead = Math.max(
+              0,
+              Number(s.subdomains_found) - Number(s.subdomains_live),
+            );
+          const parties = Array.isArray(s.third_parties) ? s.third_parties : [];
+          const tops = Array.isArray(s.top_targets) ? s.top_targets : [];
+          let html =
+            '<div class="overview-stats">' +
+            `<div class="ov-tile"><div class="num">${escapeHtml(String(n(s.subdomains_found)))}</div><div class="lbl">Discovered names</div></div>` +
+            `<div class="ov-tile"><div class="num">${escapeHtml(String(n(s.subdomains_live)))}</div><div class="lbl">DNS live</div></div>` +
+            `<div class="ov-tile"><div class="num">${escapeHtml(String(dead))}</div><div class="lbl">Unresolved / dead</div></div>` +
+            `<div class="ov-tile"><div class="num">${escapeHtml(String(parties.length))}</div><div class="lbl">Third-party signals</div></div>` +
+            "</div>" +
+            '<div class="ov-block"><strong>' +
+            escapeHtml(String(s.target || "")) +
+            "</strong> · run <code>" +
+            escapeHtml(String(s.run_id || currentRunId)) +
+            "</code> · <code>" +
+            escapeHtml(String(n(s.timestamp))) +
+            "</code></div>";
+          if (parties.length) {
+            html +=
+              '<div class="ov-block"><h4>Heuristic host / DNS signals</h4><div class="ov-chip-row">' +
+              parties
+                .map(
+                  (p) =>
+                    '<span class="ov-chip" title="' +
+                    escapeHtml(p.note || "") +
+                    '">' +
+                    escapeHtml(String(p.service || "?")) +
+                    "</span>",
+                )
+                .join("") +
+              "</div></div>";
           }
-        });
-        el('scanStatusBadge').textContent = exitCode === 0 ? 'Finished' : 'Exited ' + exitCode;
-        pingHealth();
-        if (exitCode === 0) markPipelineComplete();
-        if (exitCode === 0 && finalRunId) {
-          await loadRuns(finalRunId);
-          showToast('Visualiser updated');
-          el('runOverviewBody').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-          await loadRuns();
+          if (tops.length) {
+            html +=
+              '<div class="ov-block"><h4>Top scored hosts</h4><ul class="ov-top-targets">' +
+              tops
+                .slice(0, 8)
+                .map((t) => {
+                  const nn = t.notes ? String(t.notes) : "";
+                  return (
+                    "<li><code>" +
+                    escapeHtml(String(t.subdomain || "")) +
+                    "</code> · score <strong>" +
+                    escapeHtml(String(t.score ?? "")) +
+                    "</strong> · HTTPS " +
+                    escapeHtml(String(t.https_status || "-")) +
+                    (nn
+                      ? ' · <span title="' +
+                        escapeHtml(nn) +
+                        '">' +
+                        escapeHtml(nn.slice(0, 160)) +
+                        (nn.length > 160 ? "…" : "") +
+                        "</span>"
+                      : "") +
+                    "</li>"
+                  );
+                })
+                .join("") +
+              "</ul></div>";
+          }
+          body.innerHTML = html;
+        } catch (_) {
+          body.innerHTML =
+            '<p class="empty" style="margin:0;padding:2rem 1rem;color:var(--danger)">Could not load summary for this run.</p>';
         }
-      } catch (e) {
-        appendScanLog(String(e));
-        showToast('Scan stream error');
-        el('scanStatusBadge').textContent = 'Error';
-      } finally {
-        scanRunning = false;
-        el('btnScan').disabled = false;
-        el('scanDomain').disabled = false;
-        el('chkScanNoHttp').disabled = false;
-        el('chkScanNoSf').disabled = false;
       }
-    });
 
-    el('btnTriageReload').addEventListener('click', () => loadTriageTable());
+      el("scanForm").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        if (scanRunning) return;
+        const domain = el("scanDomain")
+          .value.trim()
+          .toLowerCase()
+          .replace(/\.+$/, "");
+        if (!domain) {
+          showToast("Enter a domain");
+          return;
+        }
+        scanRunning = true;
+        el("btnScan").disabled = true;
+        el("scanDomain").disabled = true;
+        el("chkScanNoHttp").disabled = true;
+        el("chkScanNoSf").disabled = true;
+        el("scanStatusBadge").textContent = "Running…";
+        el("scanDomainHint").textContent = domain;
+        resetPipeline();
+        el("scanLog").textContent = "";
+        try {
+          const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream",
+            },
+            body: JSON.stringify({
+              domain,
+              no_http: el("chkScanNoHttp").checked,
+              no_subfinder: el("chkScanNoSf").checked,
+            }),
+          });
+          if (res.status === 409) {
+            let detail = "Another scan is already running.";
+            try {
+              const j = await res.json();
+              if (j.detail)
+                detail =
+                  typeof j.detail === "string"
+                    ? j.detail
+                    : JSON.stringify(j.detail);
+            } catch (_) {
+              /* ignore */
+            }
+            showToast(detail);
+            el("scanStatusBadge").textContent = "Busy";
+            return;
+          }
+          if (!res.ok || !res.body) {
+            showToast("Scan request failed (HTTP " + res.status + ")");
+            el("scanStatusBadge").textContent = "Error";
+            return;
+          }
+          let finalRunId = null;
+          let exitCode = -1;
+          await consumeSseResponse(res, (obj) => {
+            if (obj.type === "start")
+              appendScanLog("── started: " + (obj.domain || "") + " ──");
+            else if (obj.type === "log") appendScanLog(obj.line);
+            else if (obj.type === "error")
+              appendScanLog("ERROR " + (obj.message || ""));
+            else if (obj.type === "done") {
+              exitCode = obj.exit_code ?? -1;
+              finalRunId = obj.run_id || null;
+              appendScanLog(
+                "── done: exit=" +
+                  exitCode +
+                  (finalRunId ? " run_id=" + finalRunId : "") +
+                  " ──",
+              );
+            }
+          });
+          el("scanStatusBadge").textContent =
+            exitCode === 0 ? "Finished" : "Exited " + exitCode;
+          pingHealth();
+          if (exitCode === 0) markPipelineComplete();
+          if (exitCode === 0 && finalRunId) {
+            await loadRuns(finalRunId);
+            showToast("Visualiser updated");
+            el("runOverviewBody").scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          } else {
+            await loadRuns();
+          }
+        } catch (e) {
+          appendScanLog(String(e));
+          showToast("Scan stream error");
+          el("scanStatusBadge").textContent = "Error";
+        } finally {
+          scanRunning = false;
+          el("btnScan").disabled = false;
+          el("scanDomain").disabled = false;
+          el("chkScanNoHttp").disabled = false;
+          el("chkScanNoSf").disabled = false;
+        }
+      });
 
-    el('btnCopyView').addEventListener('click', async () => {
-      if (!currentViewerText) return;
-      try {
-        await navigator.clipboard.writeText(currentViewerText);
-        showToast('Copied section');
-      } catch {
-        showToast('Copy blocked by browser');
+      el("btnTriageReload").addEventListener("click", () => loadTriageTable());
+
+      el("btnCopyView").addEventListener("click", async () => {
+        if (!currentViewerText) return;
+        try {
+          await navigator.clipboard.writeText(currentViewerText);
+          showToast("Copied section");
+        } catch {
+          showToast("Copy blocked by browser");
+        }
+      });
+
+      el("btnDownloadView").addEventListener("click", () => {
+        if (!currentViewerText || !currentSection) return;
+        const blob = new Blob([currentViewerText], {
+          type: "text/plain;charset=utf-8",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = currentRunId + "_" + currentSection + ".txt";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      el("btnLoadBundle").addEventListener("click", async () => {
+        if (!currentRunId) return;
+        const url = "/api/runs/" + encRun(currentRunId) + "/llm.txt";
+        lastBundleUrl = url;
+        el("bundle").textContent = "Loading bundle…";
+        const r = await fetch(url);
+        if (!r.ok) {
+          el("bundle").textContent = "Error " + r.status;
+          el("btnCopyBundle").disabled = true;
+          el("btnOpenBundle").disabled = true;
+          el("bundleHint").textContent = "";
+          return;
+        }
+        const txt = await r.text();
+        el("bundle").textContent = txt;
+        el("bundleHint").innerHTML = "<code>" + escapeHtml(url) + "</code>";
+        el("btnCopyBundle").disabled = false;
+        el("btnOpenBundle").disabled = false;
+        showToast("Bundle loaded");
+      });
+
+      el("btnCopyBundle").addEventListener("click", async () => {
+        const t = el("bundle").textContent || "";
+        if (!t.trim()) return;
+        try {
+          await navigator.clipboard.writeText(t);
+          showToast("Copied bundle");
+        } catch {
+          showToast("Copy blocked by browser");
+        }
+      });
+
+      el("btnOpenBundle").addEventListener("click", () => {
+        if (lastBundleUrl) window.open(lastBundleUrl, "_blank");
+      });
+
+      el("btnRefresh").addEventListener("click", loadRuns);
+
+      el("runSelect").addEventListener("change", refreshSections);
+
+      function renderCurls() {
+        const bu = el("bundleUrlHint");
+        if (!currentRunId) {
+          el("curlSnippets").textContent =
+            "Start scan (streams live log):\n" +
+            '  curl -N -H "Content-Type: application/json" ' +
+            '-d \'{"domain":"example.com","no_http":false}\' ' +
+            location.origin +
+            "/api/scan\n\n" +
+            'Agent manifest:\n  curl -s "' +
+            location.origin +
+            '/api/agent" | python3 -m json.tool\n\n' +
+            "Pick a run for run-specific curls.";
+          el("btnOpenBundle").disabled = true;
+          lastBundleUrl = "";
+          if (bu) bu.textContent = "Select a recon run.";
+          return;
+        }
+        const rid = currentRunId;
+        const o = location.origin;
+        const enc = encodeURIComponent(rid);
+        if (bu) bu.textContent = o + "/api/runs/" + enc + "/llm.txt";
+        const snip =
+          'Agent handshake:\n  curl -s "' +
+          o +
+          '/api/agent" | python3 -m json.tool\n\n' +
+          'Summary JSON:\n  curl -s "' +
+          o +
+          "/api/runs/" +
+          enc +
+          '/summary"\n\n' +
+          'Start scan (SSE):\n  curl -N -H "Content-Type: application/json" ' +
+          '-d \'{"domain":"example.com","no_http":false,"no_subfinder":false}\' ' +
+          o +
+          "/api/scan\n\n" +
+          'Triage rows:\n  curl -s "' +
+          o +
+          "/api/runs/" +
+          enc +
+          '/section/triage/table"\n\n' +
+          "List runs:\n  curl -s " +
+          o +
+          "/api/runs\n\n" +
+          'Combined LLM / agent blob:\n  curl -s "' +
+          o +
+          "/api/runs/" +
+          enc +
+          '/llm.txt"\n\n' +
+          'Section manifest:\n  curl -s "' +
+          o +
+          "/api/runs/" +
+          enc +
+          '/sections"\n\n' +
+          'Raw slice:\n  curl -s "' +
+          o +
+          "/api/runs/" +
+          enc +
+          '/section/subdomains_all/text"';
+
+        el("curlSnippets").textContent = snip;
+        lastBundleUrl = "/api/runs/" + encRun(rid) + "/llm.txt";
+        el("btnOpenBundle").disabled = false;
+        el("btnCopyBundle").disabled = true;
+        el("btnLoadBundle").disabled = false;
       }
-    });
 
-    el('btnDownloadView').addEventListener('click', () => {
-      if (!currentViewerText || !currentSection) return;
-      const blob = new Blob([currentViewerText], { type: 'text/plain;charset=utf-8' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = currentRunId + '_' + currentSection + '.txt';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    });
-
-    el('btnLoadBundle').addEventListener('click', async () => {
-      if (!currentRunId) return;
-      const url = '/api/runs/' + encRun(currentRunId) + '/llm.txt';
-      lastBundleUrl = url;
-      el('bundle').textContent = 'Loading bundle…';
-      const r = await fetch(url);
-      if (!r.ok) {
-        el('bundle').textContent = 'Error ' + r.status;
-        el('btnCopyBundle').disabled = true;
-        el('btnOpenBundle').disabled = true;
-        el('bundleHint').textContent = '';
-        return;
-      }
-      const txt = await r.text();
-      el('bundle').textContent = txt;
-      el('bundleHint').innerHTML = '<code>' + escapeHtml(url) + '</code>';
-      el('btnCopyBundle').disabled = false;
-      el('btnOpenBundle').disabled = false;
-      showToast('Bundle loaded');
-    });
-
-    el('btnCopyBundle').addEventListener('click', async () => {
-      const t = el('bundle').textContent || '';
-      if (!t.trim()) return;
-      try {
-        await navigator.clipboard.writeText(t);
-        showToast('Copied bundle');
-      } catch {
-        showToast('Copy blocked by browser');
-      }
-    });
-
-    el('btnOpenBundle').addEventListener('click', () => {
-      if (lastBundleUrl) window.open(lastBundleUrl, '_blank');
-    });
-
-    el('btnRefresh').addEventListener('click', loadRuns);
-
-    el('runSelect').addEventListener('change', refreshSections);
-
-    function renderCurls() {
-      const bu = el('bundleUrlHint');
-      if (!currentRunId) {
-        el('curlSnippets').textContent =
-          'Start scan (streams live log):\n' +
-          '  curl -N -H "Content-Type: application/json" ' +
-          '-d \'{"domain":"example.com","no_http":false}\' ' +
-          location.origin + '/api/scan\n\n' +
-          'Agent manifest:\n  curl -s "' + location.origin + '/api/agent" | python3 -m json.tool\n\n' +
-          'Pick a run for run-specific curls.';
-        el('btnOpenBundle').disabled = true;
-        lastBundleUrl = '';
-        if (bu) bu.textContent = 'Select a recon run.';
-        return;
-      }
-      const rid = currentRunId;
-      const o = location.origin;
-      const enc = encodeURIComponent(rid);
-      if (bu) bu.textContent = o + '/api/runs/' + enc + '/llm.txt';
-      const snip =
-        'Agent handshake:\n  curl -s "' + o + '/api/agent" | python3 -m json.tool\n\n' +
-        'Summary JSON:\n  curl -s "' + o + '/api/runs/' + enc + '/summary"\n\n' +
-        'Start scan (SSE):\n  curl -N -H "Content-Type: application/json" ' +
-        '-d \'{"domain":"example.com","no_http":false,"no_subfinder":false}\' ' +
-        o + '/api/scan\n\n' +
-        'Triage rows:\n  curl -s "' + o + '/api/runs/' + enc + '/section/triage/table"\n\n' +
-        'List runs:\n  curl -s ' + o + '/api/runs\n\n' +
-        'Combined LLM / agent blob:\n  curl -s "' + o + '/api/runs/' + enc + '/llm.txt"\n\n' +
-        'Section manifest:\n  curl -s "' + o + '/api/runs/' + enc + '/sections"\n\n' +
-        'Raw slice:\n  curl -s "' + o + '/api/runs/' + enc + '/section/subdomains_all/text"';
-
-      el('curlSnippets').textContent = snip;
-      lastBundleUrl = '/api/runs/' + encRun(rid) + '/llm.txt';
-      el('btnOpenBundle').disabled = false;
-      el('btnCopyBundle').disabled = true;
-      el('btnLoadBundle').disabled = false;
-    }
-
-    pingHealth();
-    renderPipeline();
-    loadRuns();
-
-    window.addEventListener('focus', () => {
       pingHealth();
-    });
-  </script>
-</body>
+      renderPipeline();
+      loadRuns();
+
+      window.addEventListener("focus", () => {
+        pingHealth();
+      });
+    </script>
+  </body>
 </html>

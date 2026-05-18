@@ -8,7 +8,9 @@ Run (from repo root, scan current directory):
   python3 server.py --output-dir /path/to/out
 or:
   D1GGER_OUTPUT_DIR=/path/to/out python3 -m uvicorn server:app --host 127.0.0.1 --port 8765
-Then open http://127.0.0.1:8765/ — API docs at /docs .
+
+On startup the server prints UI, API docs, and the agent manifest URL — point external
+agents (e.g. hackfast.co) at GET /api/agent on this origin.
 
 Default bind: 127.0.0.1 only — do not expose publicly; outputs may be sensitive.
 """
@@ -33,11 +35,11 @@ from pydantic import BaseModel, Field
 
 
 SECTIONS = {
-    "subdomains_all": ("_subdomains_all.txt", "text/plain; charset=utf-8"),
-    "subdomains_live": ("_subdomains_live.txt", "text/plain; charset=utf-8"),
-    "subdomains_dead": ("_subdomains_dead.txt", "text/plain; charset=utf-8"),
-    "triage": ("_triage.csv", "text/csv; charset=utf-8"),
-    "summary": ("_summary.json", "application/json; charset=utf-8"),
+    "subdomains_all": ("subdomains_all.txt", "text/plain; charset=utf-8"),
+    "subdomains_live": ("subdomains_live.txt", "text/plain; charset=utf-8"),
+    "subdomains_dead": ("subdomains_dead.txt", "text/plain; charset=utf-8"),
+    "triage": ("triage.csv", "text/csv; charset=utf-8"),
+    "summary": ("summary.json", "application/json; charset=utf-8"),
 }
 
 
@@ -45,6 +47,8 @@ class ScanBody(BaseModel):
     domain: str = Field(..., min_length=3, max_length=253)
     no_http: bool = False
     no_subfinder: bool = False
+    workers: int = Field(default=32, ge=1, le=256)
+    quiet: bool = False
 
 
 def validate_hostname(domain: str) -> str:
@@ -80,26 +84,36 @@ def _safe_run_id(run_id: str) -> str:
 
 
 def iter_runs(output_dir: Path):
-    pattern = "*_summary.json"
-    for p in sorted(output_dir.glob(pattern), key=lambda x: x.stat().st_mtime, reverse=True):
-        run_id = p.name[: -len("_summary.json")]
+    """Yield (run_id, summary_path) for every run dir, newest first."""
+    runs = []
+    for p in output_dir.glob("*/summary.json"):
+        runs.append((p.stat().st_mtime, p.parent.name, p))
+    for _, run_id, p in sorted(runs, reverse=True):
         yield run_id, p
 
 
-def summary_path(output_dir: Path, run_id: str) -> Path:
+def run_dir(output_dir: Path, run_id: str) -> Path:
     rid = _safe_run_id(run_id)
-    path = output_dir / f"{rid}_summary.json"
-    if not path.is_file():
+    d = output_dir / rid
+    if not d.is_dir():
         raise HTTPException(404, "Run not found")
-    return path
+    return d
+
+
+def summary_path(output_dir: Path, run_id: str) -> Path:
+    d = run_dir(output_dir, run_id)
+    p = d / "summary.json"
+    if not p.is_file():
+        raise HTTPException(404, "Run not found")
+    return p
 
 
 def section_path(output_dir: Path, run_id: str, section: str) -> tuple[Path, str]:
     if section not in SECTIONS:
         raise HTTPException(400, f"Unknown section. Use one of: {', '.join(SECTIONS)}")
-    suffix, ctype = SECTIONS[section]
-    rid = _safe_run_id(run_id)
-    path = output_dir / f"{rid}{suffix}"
+    filename, ctype = SECTIONS[section]
+    d = run_dir(output_dir, run_id)
+    path = d / filename
     if not path.is_file():
         raise HTTPException(404, f"Section file missing for this run: {section}")
     return path, ctype
@@ -107,50 +121,44 @@ def section_path(output_dir: Path, run_id: str, section: str) -> tuple[Path, str
 
 def build_llm_bundle(output_dir: Path, run_id: str) -> str:
     rid = validate_run_id(run_id)
-    summary_p = output_dir / f"{rid}_summary.json"
+    d = output_dir / rid
+    if not d.is_dir():
+        raise FileNotFoundError(d)
+    summary_p = d / "summary.json"
     if not summary_p.is_file():
         raise FileNotFoundError(summary_p)
     with open(summary_p, encoding="utf-8") as f:
         summary = json.load(f)
-    meta = summary.get("target", "?")
-    ts = summary.get("timestamp", "?")
 
     lines = [
-        f"D1gger recon bundle (for LLM / agent consumption)",
+        "D1gger recon bundle (for LLM / agent consumption)",
         f"run_id: {rid}",
-        f"target: {meta}",
-        f"timestamp: {ts}",
+        f"target: {summary.get('target', '?')}",
+        f"timestamp: {summary.get('timestamp', '?')}",
         "",
     ]
 
     order = [
         ("summary", "Summary (JSON, pretty-printed)"),
-        ("subdomains_all", "All subdomains (crt.sh harvest)"),
+        ("subdomains_all", "All subdomains (crt.sh + subfinder, merged)"),
         ("subdomains_live", "DNS-resolved (live)"),
         ("subdomains_dead", "DNS dead / unresolved"),
         ("triage", "Triage CSV"),
     ]
 
     for key, title in order:
-        suffix, _ctype = SECTIONS[key]
-        p = output_dir / f"{rid}{suffix}"
+        filename, _ctype = SECTIONS[key]
+        p = d / filename
         if not p.is_file():
-            lines.append(f"## {title}")
-            lines.append("(file not present)")
-            lines.append("")
+            lines += [f"## {title}", "(file not present)", ""]
             continue
         body = p.read_text(encoding="utf-8", errors="replace")
-        lines.append(f"## {title}")
-        lines.append(f"file: {p.name}")
-        lines.append("")
         if key == "summary":
             try:
-                obj = json.loads(body)
-                body = json.dumps(obj, indent=2)
+                body = json.dumps(json.loads(body), indent=2)
             except json.JSONDecodeError:
                 pass
-        lines.append(body.rstrip())
-        lines.append("")
+        lines += [f"## {title}", f"file: {p.name}", "", body.rstrip(), ""]
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -167,7 +175,7 @@ def create_app(output_dir: Path) -> FastAPI:
             "Use GET /api/agent for agent integration. "
             f"Artifact directory: {output_dir}"
         ),
-        version="1.0.0",
+        version="1.2.0",
     )
     app.add_middleware(
         CORSMiddleware,
@@ -188,13 +196,30 @@ def create_app(output_dir: Path) -> FastAPI:
         """
         return {
             "service": "d1gger-local",
-            "version": "1.0.0",
+            "version": "1.2.0",
             "product_name": "D1gger",
             "what_it_does": (
-                "Local bug-bounty recon for a domain you supply: subdomain discovery (crt.sh, subfinder fallback), "
-                "bulk IPv4 DNS resolution, optional HTTPS/HTTP probing, DNS-based third-party hints, scored triage CSV, "
-                "and artifacts written under artifact_directory — all exposed via this HTTP API and a browser UI at /."
+                "Local bug-bounty recon for a domain you supply: subdomain discovery runs crt.sh and subfinder "
+                "in parallel (merged; subfinder-only if crt.sh is down), then seven phases — parallel IPv4 DNS, "
+                "apex DNS records, third-party hints, parallel HTTPS/HTTP probing, scored triage, and artifacts "
+                "under artifact_directory — exposed via this HTTP API and a browser UI at /."
             ),
+            "scan_pipeline": [
+                "1 Subdomain discovery — crt.sh + subfinder in parallel (merged)",
+                "2 DNS resolution — parallel IPv4 per hostname",
+                "3 Apex DNS records — TXT, MX, NS, CNAME on root domain",
+                "4 Third-party detection — SaaS/CDN keyword hints",
+                "5 HTTP probing — parallel HTTPS/HTTP (skipped when no_http)",
+                "6 Triage & scoring — rank targets by name + status",
+                "7 Save artifacts — runs/<run_id>/ txt, csv, json",
+            ],
+            "scan_body": {
+                "domain": "required — in-scope target hostname",
+                "no_http": "skip phase 5 HTTP probing",
+                "no_subfinder": "crt.sh only for phase 1 (no subfinder)",
+                "workers": "parallel workers for DNS + HTTP (default 32)",
+                "quiet": "minimal per-host log noise; progress counters still stream",
+            },
             "purpose": {
                 "human": "Browser visualiser at '/' (live scan + run snapshot + tables).",
                 "agent": (
@@ -228,8 +253,13 @@ def create_app(output_dir: Path) -> FastAPI:
                 "post_json_body": (
                     "POST /api/scan expects one JSON object in the HTTP body — not a string containing JSON. "
                     "Do not double-escape quotes. Example curl flag: "
-                    '-d \'{"domain":"example.com","no_http":false,"no_subfinder":false}\' '
+                    '-d \'{"domain":"target.com","no_http":false,"no_subfinder":false,'
+                    '"workers":32,"quiet":true}\' '
                     "with Content-Type: application/json."
+                ),
+                "subdomain_discovery": (
+                    "Phase 1 runs crt.sh and subfinder concurrently and merges results. "
+                    "If crt.sh is unreachable, the scan continues with subfinder output only."
                 ),
                 "scan_sse_semantics": (
                     "POST /api/scan returns SSE: parse lines prefixed with data: as JSON objects. "
@@ -248,7 +278,8 @@ def create_app(output_dir: Path) -> FastAPI:
                 "list_runs": "curl -sS 'REPLACE_BASE/api/runs'",
                 "trigger_scan_sse": (
                     "curl -N -sS -X POST -H 'Content-Type: application/json' "
-                    '-d \'{"domain":"example.com","no_http":false,"no_subfinder":false}\' '
+                    '-d \'{"domain":"target.com","no_http":false,"no_subfinder":false,'
+                    '"workers":32,"quiet":true}\' '
                     "'REPLACE_BASE/api/scan'"
                 ),
                 "pull_summary_after_runKNOWN_ID": (
@@ -302,6 +333,9 @@ def create_app(output_dir: Path) -> FastAPI:
                     cmd.append("--no-http")
                 if body.no_subfinder:
                     cmd.append("--no-subfinder")
+                cmd.extend(["--workers", str(body.workers)])
+                if body.quiet:
+                    cmd.append("--quiet")
                 env = {**os.environ, "PYTHONUNBUFFERED": "1"}
                 proc = subprocess.Popen(
                     cmd,
@@ -317,7 +351,8 @@ def create_app(output_dir: Path) -> FastAPI:
                 for line in proc.stdout:
                     text = line.rstrip("\n\r")
                     yield sse_json({"type": "log", "line": text})
-                    m = re.search(r"([\w.-]+)_summary\.json\b", line)
+                    # "Run saved → /abs/path/runs/<run_id>"
+                    m = re.search(r"Run saved.*?[/\\]([\w.-]+)\s*$", line)
                     if m:
                         run_id_seen = m.group(1)
                 proc.stdout.close()
@@ -383,13 +418,13 @@ def create_app(output_dir: Path) -> FastAPI:
 
     @app.get("/api/runs/{run_id}/sections")
     def run_sections(run_id: str):
-        summary_path(output_dir, run_id)
+        d = run_dir(output_dir, run_id)
         files = {}
-        for key, (suffix, ctype) in SECTIONS.items():
-            p = output_dir / f"{_safe_run_id(run_id)}{suffix}"
+        for key, (filename, ctype) in SECTIONS.items():
+            p = d / filename
             files[key] = {
                 "present": p.is_file(),
-                "filename": p.name if p.is_file() else None,
+                "filename": filename if p.is_file() else None,
                 "content_type": ctype,
                 "urls": {
                     "raw": f"/api/runs/{run_id}/section/{key}/raw",
@@ -455,7 +490,7 @@ def create_app(output_dir: Path) -> FastAPI:
                 "llm_bundle": "GET /api/runs/{run_id}/llm.txt",
             },
             "section_descriptions": {
-                "subdomains_all": "Certificate transparency names (crt.sh)",
+                "subdomains_all": "All discovered hostnames (crt.sh + subfinder, merged)",
                 "subdomains_live": "Hosts that resolved in DNS",
                 "subdomains_dead": "Names that did not resolve",
                 "triage": "Per-host scoring CSV",
@@ -474,6 +509,71 @@ DEFAULT_OUTPUT_DIR = Path(os.environ.get("D1GGER_OUTPUT_DIR", "."))
 app = create_app(DEFAULT_OUTPUT_DIR)
 
 
+def _origin(host: str, port: int) -> str:
+    if host in ("0.0.0.0", "::"):
+        return f"http://127.0.0.1:{port}"
+    scheme = "https" if port == 443 else "http"
+    if ":" in host and host.startswith("["):
+        return f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}:{port}"
+
+
+def _agent_url_panel(agent_url: str) -> list[str]:
+    """Framed agent URL line; width follows URL length."""
+    label = "Agent manifest"
+    hint = "▲  point external agents here (e.g. hackfast.co)"
+    rows = [agent_url, f"      {hint}"]
+    inner = max(68, max(len(r) for r in rows) + 2)
+    lines = [
+        f"       ╭─ {label} " + "─" * max(1, inner - len(label) - 1) + "╮",
+    ]
+    for row in rows:
+        pad = max(0, inner - len(row))
+        lines.append(f"       │  {row}{' ' * pad}│")
+    lines.append(f"       ╰{'─' * (inner + 2)}╯")
+    return lines
+
+
+def _startup_logo_art(agent_url: str) -> list[str]:
+    logo = r"""
+ _______     __
+|       \  _/  \
+| $$$$$$$\|   $$   ______    ______    ______    ______
+| $$  | $$ \$$$$  /      \  /      \  /      \  /      \
+| $$  | $$  | $$ |  $$$$$$\|  $$$$$$\|  $$$$$$\|  $$$$$$\
+| $$  | $$  | $$ | $$  | $$| $$  | $$| $$    $$| $$   \$$
+| $$__/ $$ _| $$_| $$__| $$| $$__| $$| $$$$$$$$| $$
+| $$    $$|   $$ \\$$    $$ \$$    $$ \$$     \| $$
+ \$$$$$$$  \$$$$$$_\$$$$$$$ _\$$$$$$$  \$$$$$$$ \$$
+                 |  \__| $$|  \__| $$
+                  \$$    $$ \$$    $$
+                   \$$$$$$   \$$$$$$
+""".strip("\n").split("\n")
+    return [""] + logo + [""] + _agent_url_panel(agent_url) + [""]
+
+
+def _print_startup_banner(origin: str, output_dir: Path) -> None:
+    agent_url = f"{origin}/api/agent"
+    rule = "═" * 76
+    lines = [
+        "",
+        rule,
+        "  D1gger local API",
+        f"  Artefacts: {output_dir.resolve()}",
+        rule,
+        "",
+        *_startup_logo_art(agent_url),
+        "",
+        f"  UI:              {origin}/",
+        f"  API docs:        {origin}/docs",
+        "",
+        "  Only use against in-scope bug bounty targets.",
+        rule,
+        "",
+    ]
+    print("\n".join(lines), flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="D1gger local API server")
     parser.add_argument(
@@ -485,7 +585,10 @@ def main():
     parser.add_argument("--port", type=int, default=8765, help="Port")
     args = parser.parse_args()
 
-    out = Path(args.output_dir)
+    out = Path(args.output_dir).expanduser().resolve()
+    origin = _origin(args.host, args.port)
+    _print_startup_banner(origin, out)
+
     app = create_app(out)
 
     import uvicorn
